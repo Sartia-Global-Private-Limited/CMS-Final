@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-native-neomorph-shadows/index.d.ts b/node_modules/react-native-neomorph-shadows/index.d.ts
+index 12eb1ed..c09c90b 100644
+--- a/node_modules/react-native-neomorph-shadows/index.d.ts
++++ b/node_modules/react-native-neomorph-shadows/index.d.ts
+@@ -1,6 +1,7 @@
+ declare module 'react-native-neomorph-shadows' {
+   import * as React from 'react';
+-  import type { ViewProps, ViewStyle } from 'react-native';
++  import type {  ViewStyle } from 'react-native';
++  import {ViewPropsTypes} from 'deprecated-react-native-prop-types'
+ 
+   /**
+    * Defines all flex properties
+@@ -42,7 +43,7 @@ declare module 'react-native-neomorph-shadows' {
+     height: number;
+   }
+ 
+-  interface ShadowProps extends ViewProps {
++  interface ShadowProps extends ViewPropsTypes {
+     inner?: boolean;
+     useArt?: boolean;
+     style?: ViewStyleWithShadow;
+@@ -55,7 +56,7 @@ declare module 'react-native-neomorph-shadows' {
+   const Shadow: React.FC<ShadowProps>;
+   const ShadowFlex: React.FC<ShadowFlexProps>;
+ 
+-  interface NeomorphProps extends ViewProps {
++  interface NeomorphProps extends ViewPropsTypes {
+     inner?: boolean;
+     swapShadows?: boolean;
+     style?: ViewStyleWithNeomorphShadow;
+@@ -70,7 +71,7 @@ declare module 'react-native-neomorph-shadows' {
+   const Neomorph: React.FC<NeomorphProps>;
+   const NeomorphFlex: React.FC<NeomorphFlexProps>;
+ 
+-  interface NeomorphBlurProps extends ViewProps {
++  interface NeomorphBlurProps extends ViewPropsTypes {
+     inner?: boolean;
+     useArt?: boolean;
+     style?: ViewStyleWithNeomorphShadow;

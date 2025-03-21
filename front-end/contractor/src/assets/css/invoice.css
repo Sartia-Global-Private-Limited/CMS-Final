@@ -1,0 +1,56 @@
+table,
+td,
+th {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+.b-0 {
+  border: 0;
+}
+
+.invoice {
+  /* width: 900px; */
+  width: 100%;
+  /* margin: auto auto 30px auto; */
+  margin: auto;
+  font-size: 14px;
+}
+.text-center {
+  text-align: center;
+}
+
+td,
+caption {
+  padding: 16px;
+}
+
+th {
+  padding: 5px;
+  background-color: var(--bs-secondary);
+  color: white;
+  text-align: center;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+.invoice input {
+  padding: 4px 5px !important;
+}
+
+.invoice .MuiAutocomplete-inputRoot {
+  padding: 0px 5px !important;
+}
+.invoice input:focus-visible {
+  outline: #ffe1e1 auto 0px !important;
+  border: 0 !important;
+}
+.invoice .ql-toolbar.ql-snow,
+.invoice .ql-container.ql-snow {
+  border: 0 !important;
+}
+
+.invoice .MuiSvgIcon-root {
+  font-size: 18px !important;
+}

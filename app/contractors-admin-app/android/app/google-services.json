@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944630582895",
+    "project_id": "cmstest-40255",
+    "storage_bucket": "cmstest-40255.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944630582895:android:84aa7907c601eb0b31879a",
+        "android_client_info": {
+          "package_name": "com.electricaldesign.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBj73K5ENXiwv_6dyac2l8fAATJlcQe50M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

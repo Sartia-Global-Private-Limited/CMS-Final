@@ -1,0 +1,16 @@
+export default {
+  LOGO: require('../assests/images/logo.png'),
+  BUBBLE: require('../assests/images/bubble.png'),
+  DASBOARD: require('../assests/images/dasboard.png'),
+  DEFAULT_PROFILE: require('../assests/images/profile.png'),
+  DEFAULT: require('../assests/images/default.png'),
+  DASBOARD_LOGO: require('../assests/images/dashboardlogo.png'),
+  WATCH: require('../assests/images/watch.png'),
+  COMPLAINT_LOGO: require('../assests/images/ComplaintLogo.png'),
+  DOT_LOADER: require('../assests/images/dotLoader.json'),
+  LOADER: require('../assests/images/loader.json'),
+  SERVER_ERROR: require('../assests/images/serverError.json'),
+  NO_DATA_FOUND: require('../assests/images/noDataFound.json'),
+  SPLASH_LOADER: require('../assests/images/splashLoader.json'),
+  PROFILE_BACKGROUND: require('../assests/images/profileBackground.png'),
+};

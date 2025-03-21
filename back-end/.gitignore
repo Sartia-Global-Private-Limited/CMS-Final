@@ -1,0 +1,16 @@
+public
+*.env
+.env
+node_modules/
+node_modules
+API/node_modules/
+API/*.env/
+/public/
+/public
+public/
+public
+.prettierrc
+.prettierignore
+*.zip
+controllers/controllers.zip
+helpers/helpers.zip

@@ -1,0 +1,2361 @@
+Sorted Form Tutorials screen
+
+/*    ----------------Created Date :: 6- sep -2024   ----------------- */
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import Colors from '../../constants/Colors';
+import IconType from '../../constants/IconType';
+import SearchBar from '../../component/SearchBar';
+import { WINDOW_HEIGHT, WINDOW_WIDTH } from '../../utils/ScreenLayout';
+import { Icon } from '@rneui/base';
+import SeparatorComponent from '../../component/SeparatorComponent';
+import FloatingAddButton from '../../component/FloatingAddButton';
+import { useIsFocused } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
+import Loader from '../../component/Loader';
+import InternalServer from '../../component/InternalServer';
+import DataNotFound from '../../component/DataNotFound';
+import AlertModal from '../../component/AlertModal';
+import { apiBaseUrl } from '../../../config';
+import NeumorphCard from '../../component/NeumorphCard';
+import { selectUser } from '../../redux/slices/authSlice';
+import Toast from 'react-native-toast-message';
+import ImageViewer from '../../component/ImageViewer';
+import RNFetchBlob from 'rn-fetch-blob';
+import { getAllTutorialList } from '../../redux/slices/tutorials/getTutorialListSlice';
+import VideoPlayer from 'react-native-video-controls';
+import { deleteTutorialById } from '../../redux/slices/tutorials/addUpdateTutorialSlice';
+import List from '../../component/List/List';
+
+const TutorialListingScreen = ({ navigation, route }) => {
+  const typeOfTutorial = route?.params?.type;
+  /* declare props constant variale*/
+
+  /*declare hooks variable here */
+  const dispatch = useDispatch();
+  const isFocused = useIsFocused();
+  const ListData = useSelector(state => state.getTutorialList);
+
+  /*declare useState variable here */
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [imageUri, setImageUri] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(null);
+
+  const [tutorialId, setTutorialId] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    dispatch(getAllTutorialList({ pageSize: pageSize, pageNo: pageNo }));
+  }, [isFocused]);
+
+  /*search function*/
+  const searchFunction = searchvalue => {
+    dispatch(getAllTutorialList({ search: searchvalue }));
+  };
+
+  const playVideoAtIndex = index => {
+    setCurrentVideoIndex(index);
+    setIsPlaying(true);
+  };
+  const onSearchCancel = () => {
+    dispatch(getAllTutorialList({ pageSize: pageSize, pageNo: pageNo }));
+  };
+
+  /* delete Stock request  function with id */
+  const deleteTutorial = async Id => {
+    try {
+      const deleteResult = await dispatch(deleteTutorialById(Id)).unwrap();
+
+      if (deleteResult?.status === true) {
+        Toast.show({
+          type: 'success',
+          text1: deleteResult?.message,
+          position: 'bottom',
+        });
+        setDeleteModalVisible(false), setTutorialId('');
+        dispatch(getAllTutorialList({ pageSize: pageSize, pageNo: pageNo }));
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: deleteResult?.message,
+          position: 'bottom',
+        });
+        setDeleteModalVisible(false), setTutorialId('');
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: error,
+        position: 'bottom',
+      });
+      setDeleteModalVisible(false), setTutorialId('');
+    }
+  };
+
+
+  const getFilteredData = data => {
+    if (typeOfTutorial === 'text') {
+      const res = data.filter(item => item.tutorial_format === 'text');
+      return res;
+    } else if (typeOfTutorial === 'audio') {
+      const res = data.filter(item => item.tutorial_format === 'audio');
+      return res;
+    } else if (typeOfTutorial === 'video') {
+      const res = data.filter(item => item.tutorial_format === 'video');
+      return res;
+    } else if (typeOfTutorial === 'pdf') {
+      const res = data.filter(item => item.tutorial_format === 'pdf');
+      return res;
+    } else {
+      return data;
+    }
+  };
+
+  const getExtention = filename => {
+    // To get the file extension
+    return /[.]/.exec(filename) ? /[^.]+$/.exec(filename) : undefined;
+  };
+
+  /*function for downloading image*/
+
+
+  const downloadImageRemote = remoteImagePath => {
+    // Main function to download the image
+
+    // To add the time suffix in filename
+    let date = new Date();
+    // Image URL which we want to download
+    let image_URL = remoteImagePath;
+    // Getting the extention of the file
+    let ext = getExtention(image_URL);
+    ext = '.' + ext[0];
+    // Get config and fs from RNFetchBlob
+    // config: To pass the downloading related options
+    // fs: Directory path where we want our image to download
+    const { config, fs } = RNFetchBlob;
+    let PictureDir = fs.dirs.PictureDir;
+    let options = {
+      fileCache: true,
+      addAndroidDownloads: {
+        // Related to the Android only
+        useDownloadManager: true,
+        notification: true,
+        path:
+          PictureDir +
+          '/image_' +
+          Math.floor(date.getTime() + date.getSeconds() / 2) +
+          ext,
+        description: 'Image',
+      },
+    };
+    config(options)
+      .fetch('GET', image_URL)
+      .then(res => {
+        // Showing alert after successful downloading
+        setImageModalVisible(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Download success full',
+          position: 'bottom',
+        });
+        // ToastAndroid.show('Download complete', ToastAndroid.LONG);
+      });
+  };
+
+  /* flatlist render ui */
+  const renderItem = ({ item, index }) => {
+    return (
+      <View>
+        <TouchableOpacity
+          style={styles.cardContainer}
+          onPress={() =>
+            navigation.navigate('TaskDetailScreen', {
+              id: item?.id,
+            })
+          }>
+          <NeumorphCard
+            darkShadowColor={Colors().darkShadow} // <- set this
+            lightShadowColor={Colors().lightShadow} // <- this
+          >
+            <View
+              style={{
+                margin: WINDOW_WIDTH * 0.03,
+                flex: 1,
+              }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  columnGap: 10,
+                }}>
+                <View style={{ flex: 1, justifyContent: 'center' }}>
+                  <TouchableOpacity
+                  // onPress={() => {
+                  //   setImageModalVisible(true),
+                  //     setImageUri(
+                  //       item?.bank_documents
+                  //         ? `${apiBaseUrl}${item?.bank_documents}`
+                  //         : `${
+                  //             Image.resolveAssetSource(
+                  //               Images.DEFAULT_PROFILE,
+                  //             ).uri
+                  //           }`,
+                  //     );
+                  // }}
+                  >
+                    {item.tutorial_format === 'pdf' && (
+                      <Icon
+                        name="pdffile1"
+                        type={IconType.AntDesign}
+                        size={100}
+                        color={Colors().red}
+                        style={{ marginVertical: 20 }}
+                        onPress={() =>
+                          downloadImageRemote(
+                            `${apiBaseUrl}${item?.attachment}`,
+                          )
+                        }
+                      />
+                    )}
+                    {item.tutorial_format === 'text' && (
+                      <Icon
+                        name="filetext1"
+                        type={IconType.AntDesign}
+                        size={100}
+                        color={Colors().skyBule}
+                        style={{ marginVertical: 20 }}
+                        onPress={() =>
+                          downloadImageRemote(
+                            `${apiBaseUrl}${item?.attachment}`,
+                          )
+                        }
+                      />
+                    )}
+
+                    {item.tutorial_format === 'video' && (
+                      <>
+                        {index != currentVideoIndex && (
+                          <Icon
+                            name="video"
+                            type={IconType.Entypo}
+                            size={100}
+                            color={Colors().skyBule}
+                            style={{ marginVertical: 20 }}
+                            onPress={() => playVideoAtIndex(index)}
+                          />
+                        )}
+
+                        {isPlaying && index == currentVideoIndex && (
+                          <VideoPlayer
+                            source={{ uri: `${apiBaseUrl}${item?.attachment}` }} // Can be a URL or a local file.
+                            ref={ref => {
+                              this.player = ref;
+                            }} // Store reference
+                            onBuffer={item => { }} // Callback when remote video is buffering
+                            onError={this.videoError} // Callback when video cannot be loaded
+                            poster={
+                              'https://www.freeiconspng.com/thumbs/sound-png/sound-png-3.png'
+                            }
+                            posterResizeMode="cover"
+                            onEnterFullscreen={() => {
+                              // presentFullscreenPlayer();
+                              navigation.navigate('VideoPlayerScreen', {
+                                uri: `${apiBaseUrl}${item?.attachment}`,
+                              });
+                            }}
+                            onPlaybackRateChange={() => { }}
+                            resizeMode="cover"
+                            disableBack
+                            muted={true}
+                            tapAnywhereToPause={true}
+                            // autoPlay={false}
+                            paused={!isPlaying}
+                            style={styles.ImageView}
+                          />
+                        )}
+                      </>
+                    )}
+                    {item.tutorial_format === 'audio' && (
+                      <>
+                        {!isAudioPlaying && (
+                          <Icon
+                            name="file-audio-o"
+                            type={IconType.FontAwesome}
+                            size={100}
+                            color={Colors().skyBule}
+                            style={{ marginVertical: 20 }}
+                            onPress={() => setIsAudioPlaying(true)}
+                          />
+                        )}
+                        {isAudioPlaying && (
+                          <VideoPlayer
+                            source={{ uri: `${apiBaseUrl}${item?.attachment}` }} // Can be a URL or a local file.
+                            ref={ref => {
+                              this.player = ref;
+                            }} // Store reference
+                            onBuffer={this.onBuffer} // Callback when remote video is buffering
+                            onError={this.videoError} // Callback when video cannot be loaded
+                            onEnterFullscreen={() => {
+                              // navigation.navigate('VideoPlayerScreen', {
+                              //   uri: `${apiBaseUrl}${item?.attachment}`,
+                              // });
+                            }}
+                            resizeMode="cover"
+                            disableBack
+                            muted={true}
+                            tapAnywhereToPause={true}
+                            paused={!isAudioPlaying}
+                            style={styles.ImageView}
+                          />
+                        )}
+                      </>
+                    )}
+
+                    {/* <Image
+                        source={{
+                          uri: item?.bank_documents
+                            ? `${apiBaseUrl}${item?.bank_documents}`
+                            : `${
+                                Image.resolveAssetSource(Images.DEFAULT_PROFILE)
+                                  .uri
+                              }`,
+                        }}
+                        style={styles.ImageView}
+                      /> */}
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: 'row', marginTop: 5 }}>
+                    <Text
+                      style={[
+                        styles.cardHeadingTxt,
+                        { color: Colors().pureBlack },
+                      ]}>
+                      {' '}
+                      Title :{' '}
+                    </Text>
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      style={[styles.cardtext, { color: Colors().pureBlack }]}>
+                      {item?.module_type} / {item?.application_type}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row' }}>
+                    <Text
+                      style={[
+                        styles.cardHeadingTxt,
+                        { color: Colors().pureBlack },
+                      ]}>
+                      description :{' '}
+                    </Text>
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      style={[styles.cardtext, { color: Colors().pureBlack }]}>
+                      {item?.description}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.actionView}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text
+                  style={[styles.cardHeadingTxt, { color: Colors().pureBlack }]}>
+                  File Type :{' '}
+                </Text>
+                <NeumorphCard>
+                  <View style={{ padding: 5 }}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={[styles.cardtext, { color: Colors().pending }]}>
+                      {item?.tutorial_format}
+                    </Text>
+                  </View>
+                </NeumorphCard>
+              </View>
+              <View style={styles.actionView2}>
+                <NeumorphCard
+                  lightShadowColor={Colors().darkShadow2}
+                  darkShadowColor={Colors().lightShadow}>
+                  <Icon
+                    name="edit"
+                    type={IconType.Feather}
+                    color={Colors().edit}
+                    style={styles.actionIcon}
+                    onPress={() =>
+                      navigation.navigate('AddUpdateTutorialScreen', {
+                        edit_id: item?.id,
+                        // type: 'update',
+                      })
+                    }
+                  />
+                </NeumorphCard>
+                <NeumorphCard
+                  lightShadowColor={Colors().darkShadow2}
+                  darkShadowColor={Colors().lightShadow}>
+                  <Icon
+                    name="delete"
+                    type={IconType.AntDesign}
+                    color={Colors().red}
+                    onPress={() => {
+                      setDeleteModalVisible(true), setTutorialId(item?.id);
+                    }}
+                    style={styles.actionIcon}
+                  />
+                </NeumorphCard>
+              </View>
+            </View>
+          </NeumorphCard>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors().screenBackground }}>
+      <SearchBar setSearchText={setSearchText} />
+      <SeparatorComponent
+        separatorWidth={0.2}
+        separatorColor={Colors().darkShadow2}
+      />
+
+
+      <View style={{ height: WINDOW_HEIGHT * 0.75 }}>
+        <List
+          addAction={'AddUpdateTutorialScreen'}
+          data={ListData}
+          permissions={{ view: true }}
+          renderItem={renderItem}
+          setPageNo={setPageNo}
+          pageNo={pageNo}
+          apiFunctions={() => {
+            dispatch(
+              getAllTutorialList({
+                pageSize: pageSize,
+                pageNo: pageNo
+              }));
+          }} />
+      </View>
+
+      {deleteModalVisible && (
+        <AlertModal
+          visible={deleteModalVisible}
+          iconName={'delete-circle-outline'}
+          icontype={IconType.MaterialCommunityIcons}
+          iconColor={Colors().red}
+          textToShow={'ARE YOU SURE YOU WANT TO DELETE THIS!!'}
+          cancelBtnPress={() => setDeleteModalVisible(!deleteModalVisible)}
+          ConfirmBtnPress={() => deleteTutorial(tutorialId)}
+        />
+      )}
+
+      {statusModalVisible && (
+        <AlertModal
+          visible={statusModalVisible}
+          iconName={'clock-edit-outline'}
+          icontype={IconType.MaterialCommunityIcons}
+          iconColor={Colors().aprroved}
+          textToShow={'ARE YOU SURE YOU WANT TO UPDATE THIS!!'}
+          cancelBtnPress={() => setStatusModalVisible(!statusModalVisible)}
+          ConfirmBtnPress={() => formik.handleSubmit()}
+        />
+      )}
+    </SafeAreaView>
+  );
+};
+
+export default TutorialListingScreen;
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    width: WINDOW_WIDTH * 0.95,
+    marginBottom: 15,
+    height: 'auto',
+    alignSelf: 'center'
+  },
+  cardHeadingTxt: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 21,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+  cardtext: {
+    fontSize: 12,
+    fontWeight: '300',
+    lineHeight: 21,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+    flexShrink: 1,
+  },
+  actionView: {
+    margin: WINDOW_WIDTH * 0.03,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  actionView2: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    columnGap: 10,
+  },
+
+  ImageView: {
+    // position: 'absolute',
+    height: WINDOW_HEIGHT * 0.2,
+    // width: WINDOW_WIDTH * 0.9,
+    margin: 5,
+    borderRadius: 8,
+    borderColor: Colors().black2,
+  },
+});
+
+
+// import {StyleSheet, Text, View, Image} from 'react-native';
+// import React, {memo, useState} from 'react';
+// import {apiBaseUrl} from '../../config';
+// import Images from '../constants/Images';
+// import SeparatorComponent from './SeparatorComponent';
+// import NeumorphCard from './NeumorphCard';
+// import Colors from '../constants/Colors';
+// import {WINDOW_HEIGHT, WINDOW_WIDTH} from '../utils/ScreenLayout';
+// import NeuomorphAvatar from './NeuomorphAvatar';
+// import {Avatar, Icon} from '@rneui/themed';
+// import ImageViewer from './ImageViewer';
+// import IconType from '../constants/IconType'; // Correctly imported
+
+// const CustomeCard = ({
+//   headerName,
+//   avatarImage,
+//   data,
+//   allData,
+//   buttons = [],
+//   status,
+//   rightStatus,
+//   action,
+// }) => {
+//   const [imageModalVisible, setImageModalVisible] = useState(false);
+//   const [imageUri, setImageUri] = useState('');
+
+//   const handleImagePress = () => {
+//     setImageModalVisible(true);
+//     setImageUri(
+//       avatarImage.startsWith('/') ? `${apiBaseUrl}${avatarImage}` : avatarImage,
+//     );
+//     action && action({typeOfButton: 'avatarImage', itemData: allData});
+//   };
+
+//   const renderStatus = statusArray =>
+//     statusArray &&
+//     statusArray.length > 0 && (
+//       <View style={styles.statusContainer}>
+//         <Text style={styles.cardHeadingTxt}>{statusArray[0]?.key} :</Text>
+//         {statusArray[0]?.value && (
+//           <NeumorphCard>
+//             <View style={styles.statusView}>
+//               <Text
+//                 style={[
+//                   styles.cardtext,
+//                   {color: statusArray[0]?.color || Colors().pureBlack},
+//                 ]}>
+//                 {statusArray[0]?.value}
+//               </Text>
+//             </View>
+//           </NeumorphCard>
+//         )}
+//         {statusArray[0]?.component && statusArray[0]?.component}
+//       </View>
+//     );
+
+//   const renderButton = (buttonType, iconName, iconColor) => (
+//     <NeumorphCard
+//       lightShadowColor={Colors().darkShadow2}
+//       darkShadowColor={Colors().lightShadow}>
+//       <Icon
+//         name={iconName}
+//         type={IconType[buttonType]} // Use IconType to define the type
+//         color={iconColor}
+//         style={styles.actionIcon}
+//         onPress={() => action({typeOfButton: buttonType, itemData: allData})}
+//       />
+//     </NeumorphCard>
+//   );
+
+//   return (
+//     <View style={styles.mainView}>
+//       <NeumorphCard>
+//         <View style={styles.cardContainer}>
+//           {headerName && (
+//             <>
+//               <Text style={[styles.headingTxt, {color: Colors().purple}]}>
+//                 {headerName}
+//               </Text>
+//               <SeparatorComponent
+//                 separatorColor={Colors().gray2}
+//                 separatorHeight={0.5}
+//               />
+//             </>
+//           )}
+
+//           <View style={styles.rowContainer}>
+//             {avatarImage && (
+//               <NeuomorphAvatar gap={4}>
+//                 <Avatar
+//                   size={50}
+//                   rounded
+//                   onPress={handleImagePress}
+//                   source={{
+//                     uri: avatarImage?.startsWith('/')
+//                       ? `${apiBaseUrl}${avatarImage}`
+//                       : avatarImage?.startsWith('data:image') ||
+//                         avatarImage?.startsWith('file:///')
+//                       ? avatarImage
+//                       : Image.resolveAssetSource(Images.DEFAULT_PROFILE).uri,
+//                   }}
+//                 />
+//               </NeuomorphAvatar>
+//             )}
+
+//             <View style={styles.dataContainer}>
+//               {data.map((itm, index) => (
+//                 <View key={index} style={styles.dataItem}>
+//                   {itm?.key && (
+//                     <Text
+//                       numberOfLines={2}
+//                       style={[
+//                         styles.cardHeadingTxt,
+//                         {color: Colors().pureBlack},
+//                       ]}>
+//                       {itm.key} :{' '}
+//                     </Text>
+//                   )}
+//                   {itm?.component || (
+//                     <Text
+//                       numberOfLines={1}
+//                       ellipsizeMode="tail"
+//                       style={[
+//                         styles.cardtext,
+//                         {color: itm?.keyColor || Colors().pureBlack},
+//                       ]}>
+//                       {itm.value || '--'}
+//                     </Text>
+//                   )}
+//                 </View>
+//               ))}
+//             </View>
+//           </View>
+
+//           {renderStatus(status)}
+
+//           <View style={styles.actionContainer}>
+//             {renderStatus(rightStatus)}
+//             {buttons.map((button, index) =>
+//               renderButton(button.type, button.iconName, button.color),
+//             )}
+//           </View>
+//         </View>
+//       </NeumorphCard>
+
+//       {imageModalVisible && (
+//         <ImageViewer
+//           visible={imageModalVisible}
+//           imageUri={imageUri}
+//           cancelBtnPress={() => setImageModalVisible(false)}
+//         />
+//       )}
+//     </View>
+//   );
+// };
+
+// export default memo(CustomeCard);
+
+// const styles = StyleSheet.create({
+//   mainView: {
+//     marginHorizontal: WINDOW_WIDTH * 0.03,
+//     marginVertical: WINDOW_HEIGHT * 0.01,
+//   },
+//   headingTxt: {
+//     fontSize: 15,
+//     fontWeight: '600',
+//     letterSpacing: 0.2,
+//     textTransform: 'uppercase',
+//     fontFamily: Colors().fontFamilyBookMan,
+//     alignSelf: 'center',
+//     marginBottom: 2,
+//   },
+//   cardContainer: {
+//     padding: 10,
+//   },
+//   rowContainer: {
+//     flexDirection: 'row',
+//     columnGap: 10,
+//   },
+//   dataContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//   },
+//   dataItem: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//   },
+//   statusContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//   },
+//   statusView: {
+//     padding: 5,
+//   },
+//   actionContainer: {
+//     flexDirection: 'row',
+//     justifyContent: 'flex-end',
+//     alignItems: 'center',
+//   },
+//   actionIcon: {
+//     padding: 8,
+//   },
+//   cardHeadingTxt: {
+//     fontSize: 13,
+//     fontWeight: '600',
+//     letterSpacing: 0.2,
+//   },
+//   cardtext: {
+//     fontSize: 12,
+//     letterSpacing: 0.2,
+//   },
+// });
+
+/*    ----------------Created Date :: 20- April -2024   ----------------- */
+import { StyleSheet, Text, View, Image } from 'react-native';
+import React, { memo, useState } from 'react';
+import { apiBaseUrl } from '../../config';
+import Images from '../constants/Images';
+import SeparatorComponent from './SeparatorComponent';
+import NeumorphCard from './NeumorphCard';
+import Colors from '../constants/Colors';
+import { WINDOW_HEIGHT, WINDOW_WIDTH } from '../utils/ScreenLayout';
+import NeuomorphAvatar from './NeuomorphAvatar';
+import { Avatar, Icon } from '@rneui/themed';
+import ImageViewer from './ImageViewer';
+import IconType from '../constants/IconType';
+
+const CustomeCard = ({
+  headerName, //key for displaying header of card
+  avatarImage, //Image uri inside card
+  data, //contain key value pair to display data
+  allData, //contain all data
+  approveButton,
+  allocateButton,
+  editAllocateButton,
+
+  holdButton,
+  clockOutButton,
+  clockInButton,
+  editButton,
+  deleteButton,
+  reactiveButton,
+  changeStatusButton,
+  changeButton,
+  rejectButton,
+  discardButton,
+  timelineButton,
+  minusButton,
+  plusButton,
+  downButton,
+  listButton,
+  feedbackButton,
+  attachmentButton,
+  autoDeletButton,
+  doubleCheckButton,
+  toolButton,
+  calenderButton,
+  imageButton,
+  savePdfButton,
+  rightStatus,
+  status,
+  action,
+}) => {
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [imageUri, setImageUri] = useState(false);
+
+  return (
+    <View style={styles.mainView}>
+      {/* Request field */}
+      <NeumorphCard>
+        <View style={styles.cardContainer}>
+          {headerName && (
+            <>
+              <Text style={[styles.headingTxt, { color: Colors().purple }]}>
+                {headerName}
+              </Text>
+              <SeparatorComponent
+                separatorColor={Colors().gray2}
+                separatorHeight={0.5}
+              />
+            </>
+          )}
+
+          {/* view for request user */}
+          <View
+            style={{
+              flexDirection: 'row',
+              columnGap: 10,
+            }}>
+            {avatarImage !== undefined && (
+              <View>
+                <NeuomorphAvatar gap={4}>
+                  <Avatar
+                    size={50}
+                    rounded
+                    onPress={() => {
+                      setImageModalVisible(true);
+                      setImageUri(
+                        avatarImage.startsWith('/')
+                          ? `${apiBaseUrl}${avatarImage}`
+                          : `${avatarImage}`,
+                      );
+                      action &&
+                        action({
+                          typeOfButton: 'avatarImage',
+                          itemData: allData,
+                        });
+                    }}
+                    source={{
+                      uri: avatarImage?.startsWith('/')
+                        ? `${apiBaseUrl}${avatarImage}`
+                        : avatarImage?.startsWith('data:image') ||
+                            avatarImage?.startsWith('file:///')
+                          ? `${avatarImage}`
+                          : `${
+                              Image.resolveAssetSource(Images.DEFAULT_PROFILE)
+                                .uri
+                            }`,
+                    }}
+                  />
+                </NeuomorphAvatar>
+              </View>
+            )}
+
+            <View style={{ flex: 1, alignContent: 'center' }}>
+              {data.map((itm, index) => (
+                <View
+                  key={index}
+                  style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                  }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {itm?.key && (
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.cardHeadingTxt,
+                          { color: Colors().pureBlack, maxWidth: '50%' },
+                        ]}>
+                        {itm.key} :{' '}
+                      </Text>
+                    )}
+
+                    {itm?.component ? (
+                      itm?.component
+                    ) : (
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={[
+                          styles.cardtext,
+                          {
+                            color: itm?.keyColor || Colors().pureBlack,
+                          },
+                        ]}>
+                        {itm.value ? itm?.value : '--'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+          {status && (
+            <View style={styles.actionView}>
+              {status[0]?.key && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text
+                    style={[
+                      styles.cardHeadingTxt,
+                      { color: Colors().pureBlack },
+                    ]}>
+                    {status[0]?.key} :{' '}
+                  </Text>
+                  {status[0]?.value && (
+                    <NeumorphCard>
+                      <View style={{ padding: 5 }}>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={[
+                            styles.cardtext,
+                            { color: status[0]?.color || Colors().pureBlack },
+                          ]}>
+                          {status[0]?.value}
+                        </Text>
+                      </View>
+                    </NeumorphCard>
+                  )}
+                  {status[0]?.component && status[0]?.component}
+                </View>
+              )}
+
+              <View style={styles.actionView2}>
+                {rightStatus && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {rightStatus[0]?.key && (
+                      <Text
+                        style={[
+                          styles.cardHeadingTxt,
+                          { color: Colors().pureBlack },
+                        ]}>
+                        {rightStatus[0]?.key} :{' '}
+                      </Text>
+                    )}
+
+                    <NeumorphCard>
+                      <View style={{ padding: 5 }}>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={[
+                            styles.cardtext,
+                            { color: rightStatus[0]?.color },
+                          ]}>
+                          {rightStatus[0]?.value}
+                        </Text>
+                      </View>
+                    </NeumorphCard>
+                  </View>
+                )}
+
+                {editButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'edit'}
+                      type={IconType.Feather}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'edit',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {rejectButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="cancel-presentation"
+                      type={IconType.MaterialIcons}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'reject',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+
+                {approveButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="checksquareo"
+                      type={IconType.AntDesign}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'approve',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {allocateButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="user-check"
+                      type={IconType.Feather}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'allocate',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {editAllocateButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="account-edit-outline"
+                      type={IconType.MaterialCommunityIcons}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'editallocate',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {holdButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="stop-circle"
+                      type={IconType.Feather}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'hold',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {clockOutButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="login"
+                      type={IconType.SimpleLineIcons}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'clockout',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {clockInButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="logout"
+                      type={IconType.SimpleLineIcons}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'clockin',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {deleteButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="delete"
+                      type={IconType.AntDesign}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      // disabled={!item?.active}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'delete',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+
+                {minusButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="minus"
+                      type={IconType.AntDesign}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'minus',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {plusButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name="plus"
+                      type={IconType.AntDesign}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'plus',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+
+                {downButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={allData?.showTable[allData?.idx] ? 'up' : 'down'}
+                      type={IconType.AntDesign}
+                      color={
+                        allData?.itm?.Old_Price_Viewed
+                          ? Colors().aprroved
+                          : Colors().red
+                      }
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'down',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {feedbackButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'feedback'}
+                      type={IconType.MaterialIcons}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'feedback',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {listButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'list'}
+                      type={IconType.Feather}
+                      color={Colors().orange}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'list',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {attachmentButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'attachment'}
+                      type={IconType.Entypo}
+                      color={Colors().orange}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'attachment',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+
+                {reactiveButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'restore'}
+                      type={IconType.MaterialCommunityIcons}
+                      color={Colors().partial}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'reactive',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {changeStatusButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'cycle'}
+                      type={IconType.Entypo}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'cycle',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {discardButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'ban'}
+                      type={IconType.FontAwesome}
+                      color={Colors().partial}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'discard',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {timelineButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'timeline'}
+                      type={IconType.MaterialIcons}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'timeline',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {changeButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'cycle'}
+                      type={IconType.Entypo}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'change',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {toolButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'tools'}
+                      type={IconType.Entypo}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'tool',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {calenderButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'calendar'}
+                      type={IconType.AntDesign}
+                      color={Colors().purple}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'calender',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {doubleCheckButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'check-double'}
+                      type={IconType.FontAwesome5}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'doubleCheck',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {autoDeletButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'auto-delete'}
+                      type={IconType.MaterialIcons}
+                      color={Colors().red}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'autoDelete',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {imageButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'image'}
+                      type={IconType.Ionicons}
+                      color={Colors().purple}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'image',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+                {savePdfButton && (
+                  <NeumorphCard
+                    lightShadowColor={Colors().darkShadow2}
+                    darkShadowColor={Colors().lightShadow}>
+                    <Icon
+                      name={'file-pdf-o'}
+                      type={IconType.FontAwesome}
+                      color={Colors().aprroved}
+                      style={styles.actionIcon}
+                      onPress={action.bind(this, {
+                        typeOfButton: 'savepdf',
+                        itemData: allData,
+                      })}
+                    />
+                  </NeumorphCard>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </NeumorphCard>
+
+      {/*view for modal of upate */}
+      {imageModalVisible && (
+        <ImageViewer
+          visible={imageModalVisible}
+          imageUri={imageUri}
+          cancelBtnPress={() => setImageModalVisible(!imageModalVisible)}
+          // downloadBtnPress={item => downloadImageRemote(item)}
+        />
+      )}
+    </View>
+  );
+};
+// Custom comparison function for React.memo
+function areEqual(prevProps, nextProps) {
+  return prevProps.item === nextProps.item;
+}
+
+// export default memo(CustomeCard, areEqual);
+export default CustomeCard;
+
+const styles = StyleSheet.create({
+  tableHeadingView: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainView: {
+    marginHorizontal: WINDOW_WIDTH * 0.03,
+    marginVertical: WINDOW_HEIGHT * 0.01,
+  },
+  headingTxt: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  cardContainer: {
+    margin: WINDOW_WIDTH * 0.03,
+    flex: 1,
+    rowGap: WINDOW_HEIGHT * 0.01,
+  },
+  bankCard: {
+    margin: WINDOW_WIDTH * 0.03,
+    padding: WINDOW_WIDTH * 0.03,
+    rowGap: 10,
+  },
+  twoItemView: {
+    flexDirection: 'row',
+    columnGap: 5,
+  },
+  title: {
+    fontSize: 15,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+    color: Colors().pureBlack,
+    flexShrink: 1,
+  },
+  cardtext: {
+    fontSize: 12,
+    fontWeight: '300',
+    lineHeight: 20,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+    flexShrink: 1,
+  },
+  actionView: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  actionView2: {
+    maxWidth: '50%',
+
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    columnGap: 10,
+  },
+  cardHeadingTxt: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 20,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+});
+
+Previous Ui Design with functions 
+
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Image,
+} from 'react-native';
+import Pagination from './Pagination';
+import InternalServer from '../InternalServer';
+import Loader from '../Loader';
+import { WINDOW_HEIGHT, WINDOW_WIDTH } from '../../utils/ScreenLayout';
+import Colors from '../../constants/Colors';
+import DataNotFound from '../DataNotFound';
+import FloatingAddButton from '../FloatingAddButton';
+import { useNavigation } from '@react-navigation/native';
+import usePermission from '../../hooks/usePermission';
+
+const List = ({
+  data,
+  renderItem,
+  listStyle,
+  apiFunctions,
+  setPageNo,
+  pageNo,
+  addAction,
+  addFunction,
+  ListFooterComponent,
+}) => {
+  const navigation = useNavigation();
+  const { permissions } = usePermission({});
+  useEffect(() => {}, [pageNo, data]);
+
+  return (
+    <View
+      style={[
+        styles.container,
+        { listStyle, backgroundColor: Colors()?.screenBackground },
+      ]}>
+      {data?.isLoading ? (
+        <View
+          style={{
+            width: WINDOW_WIDTH,
+            backgroundColor: Colors()?.screenBackground,
+            height: WINDOW_HEIGHT * 0.85,
+          }}>
+          <Loader />
+        </View>
+      ) : data?.isError ? (
+        <View
+          style={{
+            width: WINDOW_WIDTH,
+            backgroundColor: Colors()?.screenBackground,
+            height: WINDOW_HEIGHT * 0.85,
+          }}>
+          <InternalServer />
+        </View>
+      ) : permissions?.view === 0 ? (
+        <View
+          style={{
+            marginTop: 150,
+            width: 300,
+            height: 300,
+            alignSelf: 'center',
+            gap: 15,
+          }}>
+          <Image
+            style={{ width: 300, height: 300, borderRadius: 10 }}
+            source={require('../../assests/images/access_denied.png')}
+          />
+          <Text
+            style={{
+              color: Colors().rejected,
+              fontSize: 18,
+              textAlign: 'center',
+              alignSelf: 'center',
+            }}>
+            You Don't Have Permissions To Access This Item
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={data?.isLoading}
+              onRefresh={apiFunctions}
+            />
+          }
+          // onEndReached={() => {
+          //   apiFunctions();
+          // }}
+          contentContainerStyle={[
+            listStyle,
+            {
+              height: 'auto',
+              width: WINDOW_WIDTH,
+              backgroundColor: Colors()?.screenBackground,
+              paddingBottom: 100,
+            },
+          ]}
+          ListFooterComponent={ListFooterComponent && ListFooterComponent}
+          data={data?.data?.data || []}
+          renderItem={renderItem}
+          keyExtractor={item => item?.id}
+          ListEmptyComponent={
+            <View
+              style={{
+                height: WINDOW_HEIGHT * 0.8,
+                alignItems: 'center',
+              }}>
+              {permissions?.view === 0 ? (
+                <View
+                  style={{
+                    marginTop: 150,
+                    width: 300,
+                    height: 300,
+                    alignSelf: 'center',
+                    gap: 15,
+                  }}>
+                  <Image
+                    style={{ width: 300, height: 300, borderRadius: 10 }}
+                    source={require('../../assests/images/access_denied.png')}
+                  />
+                  <Text
+                    style={{
+                      color: Colors().rejected,
+                      fontSize: 18,
+                      textAlign: 'center',
+                      alignSelf: 'center',
+                    }}>
+                    You Don't Have Permissions To Access This Item
+                  </Text>
+                </View>
+              ) : (
+                <DataNotFound />
+              )}
+              {/* {(addFunction || addAction) && (
+                <View
+                  style={{
+                    zIndex: 1,
+                    position: 'absolute',
+                    bottom: 250,
+                    right: 80,
+                  }}>
+                  <FloatingAddButton
+                    backgroundColor={Colors().purple}
+                    onPress={
+                      addFunction
+                        ? addFunction
+                        : () => {
+                            navigation.navigate(addAction);
+                          }
+                    }
+                  />
+                </View>
+              )} */}
+            </View>
+          }
+        />
+      )}
+      {data?.isLoading ||
+        ((addFunction || addAction) && (
+          <View
+            style={{ zIndex: 1, position: 'absolute', bottom: 250, right: 80 }}>
+            {permissions?.create === 1 && (
+              <FloatingAddButton
+                backgroundColor={Colors().purple}
+                onPress={
+                  addFunction
+                    ? addFunction
+                    : () => {
+                        navigation.navigate(addAction);
+                      }
+                }
+              />
+            )}
+          </View>
+        ))}
+      {data?.isLoading ||
+        (apiFunctions && permissions?.view === 1 && (
+          <View
+            style={{
+              pasition: 'absolute',
+              bottom: 80,
+              height: 60,
+            }}>
+            <Pagination
+              setPageNo={setPageNo}
+              ListData={data?.data}
+              pageNo={pageNo}
+              apiFunctions={apiFunctions}
+            />
+          </View>
+        ))}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    width: WINDOW_WIDTH,
+    paddingBottom: 60,
+    backgroundColor: Colors().screenBackground,
+  },
+  button: {
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    width: '90%',
+    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 5,
+    marginVertical: 10,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+});
+
+export default List;
+
+
+Previous Pagination UI Design with Functions
+
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+} from 'react-native';
+import React from 'react';
+
+const Pagination = ({ ListData, apiFunctions, setPageNo, pageNo }) => {
+  const buttons = [];
+
+  const handlePageClick = number => {
+    setPageNo(number);
+    apiFunctions();
+  };
+
+  for (let i = 1; i <= ListData?.pageDetails?.totalPages; i++) {
+    buttons.push(
+      <TouchableOpacity
+        key={i}
+        onPress={() => handlePageClick(i)}
+        style={[
+          styles.paginationButton,
+          i === pageNo ? styles.activeButton : null,
+        ]}>
+        <Text style={{ color: 'white' }}>{i}</Text>
+      </TouchableOpacity>,
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={{
+        alignSelf: 'center',
+        paddingHorizontal: 10,
+      }}>
+      <ScrollView
+        contentContainerStyle={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          alignSelf: 'center',
+        }}
+        showsHorizontalScrollIndicator={false}
+        horizontal={true}>
+        {buttons}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+export default Pagination;
+
+const styles = StyleSheet.create({
+  activeButton: {
+    backgroundColor: '#22c55d',
+    width: 40,
+    height: 40,
+    borderRadius: 25,
+  },
+  paginationButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 35,
+    height: 35,
+    borderRadius: 20,
+    marginHorizontal: 4,
+    backgroundColor: 'gray',
+  },
+});
+
+
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  TouchableOpacity,
+  FlatList,
+  Image,
+} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import DashBoardCard from '../../component/DashBoardCard';
+import SeparatorComponent from '../../component/SeparatorComponent';
+import { Avatar } from '@rneui/themed';
+import { WINDOW_HEIGHT, WINDOW_WIDTH } from '../../utils/ScreenLayout';
+import Images from '../../constants/Images';
+import Colors from '../../constants/Colors';
+import {
+  selectUser,
+  setActiveTab,
+  setAllMenus,
+} from '../../redux/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { apiBaseUrl } from '../../../config';
+import NeuomorphAvatar from '../../component/NeuomorphAvatar';
+import InternetConnectivity from '../../utils/InternetConnectivity';
+import NoInternet from '../../component/NoInternet';
+import { useGetSidebarMenuQuery } from '../../services/generalapi';
+import Loader from '../../component/Loader';
+import DataNotFound from '../../component/DataNotFound';
+import { Icon } from '@rneui/base';
+import IconType from '../../constants/IconType';
+import { Neomorph } from 'react-native-neomorph-shadows';
+import InternalServer from '../../component/InternalServer';
+import Button from '../../component/Button';
+import { updateAttendanceStatus } from '../../redux/slices/hr-management/attendance/addUpdateAttendanceSlice';
+import Toast from 'react-native-toast-message';
+import NeumorphCard from '../../component/NeumorphCard';
+
+const Home = ({ navigation }) => {
+  const [clockStatus, setClockStatus] = useState(false);
+  const { data, isLoading, isError } = useGetSidebarMenuQuery({});
+  const { user } = useSelector(selectUser);
+  const dispatch = useDispatch();
+  const net = InternetConnectivity();
+
+  useEffect(() => {
+    dispatch(setAllMenus(data));
+  }, [data]);
+
+  const navigationToSubmoduleSCreen = item => {
+    navigation.navigate('SubModuleScreen', {
+      title: item?.title,
+      submodulesData: item?.submodules,
+    });
+  };
+
+  const navigatingToNormalScreen = item => {
+    const path = item?.path;
+    dispatch(setActiveTab(path));
+    switch (path) {
+      case '/plan_pricing':
+        navigation.navigate('PlanPricingListScreen');
+        break;
+      case '/Tutorials':
+        navigation.navigate('TutorialTopTab');
+        break;
+      case '/supplier':
+        navigation.navigate('SupplierTopTab');
+        break;
+      case '/outlet':
+        navigation.navigate('OutletTopTab');
+        break;
+      case '/assests':
+        navigation.navigate('AssestsTopTab');
+        break;
+      case '/paid_invoice':
+        navigation.navigate('PaidInvoiceTopTab');
+        break;
+      case '/area_manager':
+        navigation.navigate('AreaManagerListScreen');
+        break;
+      case '/regional_office':
+        navigation.navigate('RegionalOfficeListScreen');
+        break;
+      case '/FeedbackSuggestion':
+        navigation.navigate('FeedbackSuggestionListScreen');
+        break;
+      case '/energy-team':
+        navigation.navigate('EnergyTeamListScreen');
+        break;
+      case '/dashboard':
+        navigation.navigate('Dashboard');
+        break;
+      case '/MyProfile':
+        navigation.navigate('ProfileScreen');
+        break;
+      case '/AllNotifications':
+        navigation.navigate('NotificationsListScreen');
+        break;
+      case '/all-messages':
+        navigation.navigate('Chats');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const cardRender = ({ item }) => {
+    return (
+      <TouchableOpacity
+        disabled={item?.status === 0}
+        onPress={() => {
+          item?.submodules?.length > 0
+            ? navigationToSubmoduleSCreen(item)
+            : navigatingToNormalScreen(item);
+        }}>
+        <DashBoardCard
+          itemName={item?.title}
+          itemUri={item?.icon}
+          status={item.status}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const updateAttendance = async () => {
+    const reqbody = {
+      id: user?.id,
+      type: clockStatus ? 'clockout' : 'clockin',
+    };
+
+    try {
+      const result = await dispatch(updateAttendanceStatus(reqbody)).unwrap();
+      if (result?.status) {
+        setClockStatus(prev => !prev);
+        Toast.show({
+          type: 'success',
+          text1: result?.message,
+          position: 'bottom',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: result?.message,
+          position: 'bottom',
+        });
+      }
+    } catch (error) {
+      console.log('error', error);
+      Toast.show({
+        type: 'error',
+        text1: error,
+        position: 'bottom',
+      });
+    }
+  };
+
+  return (
+    <SafeAreaView
+      style={{ backgroundColor: Colors().screenBackground, flex: 1 }}>
+      {!net && net != null && <NoInternet />}
+      <View style={styles.headerView}>
+        <View style={styles.imageLeftView}>
+          <Image
+            source={{
+              uri:
+                user?.company_logo != ''
+                  ? `${apiBaseUrl}${user?.company_logo}`
+                  : `${Image.resolveAssetSource(Images.DEFAULT_PROFILE).uri}`,
+            }}
+            resizeMode="contain"
+            style={{
+              width: WINDOW_WIDTH * 0.4,
+              height: WINDOW_WIDTH * 0.15,
+              borderRadius: 5,
+            }}
+          />
+          <SeparatorComponent
+            separatorHeight={WINDOW_HEIGHT * 0.05}
+            separatorColor={Colors().screenBackground}
+          />
+          <Text numberOfLines={1} style={styles.hellowTxt}>
+            Hello,
+          </Text>
+          <SeparatorComponent separatorColor={Colors().screenBackground} />
+          <Text numberOfLines={2} style={styles.useNameTxt}>
+            {user?.name}
+          </Text>
+          <View style={{ width: 100, margin: 10 }}>
+            <NeumorphCard
+              style={{
+                margin: 7,
+                shadowRadius: 5,
+                shadowOpacity: 0.8,
+                borderRadius: 5,
+                backgroundColor: clockStatus
+                  ? Colors().rejected
+                  : Colors().aprroved,
+              }}
+              darkShadowColor={Colors().darkShadow}
+              lightShadowColor={Colors().lightShadow}>
+              <Button
+                btnStyle={{
+                  padding: 5,
+                  borderRadius: 5,
+                }}
+                textstyle={{
+                  textTransform: 'uppercase',
+                  fontWeight: '600',
+                  fontSize: 12,
+                  color: Colors().purple,
+                  fontFamily: Colors().fontFamilyBookMan,
+                }}
+                title={clockStatus ? 'Clock Out' : 'Clock In'}
+                onPress={() => {
+                  updateAttendance();
+                }}
+              />
+            </NeumorphCard>
+          </View>
+        </View>
+        <View style={styles.imageRightView}>
+          <View
+            style={{
+              paddingVertical: 10,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}>
+            <NeumorphCard
+              inner={true}
+              darkShadowColor={Colors().darkShadow}
+              lightShadowColor={Colors().lightShadow}>
+              <Icon
+                style={{
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: 5,
+                }}
+                name="bell"
+                type={IconType.FontAwesome}
+                size={18}
+                color={Colors().resolved}
+                onPress={() => {
+                  navigation.navigate('NotificationsListScreen');
+                }}
+              />
+            </NeumorphCard>
+            <NeumorphCard
+              inner={true}
+              darkShadowColor={Colors().darkShadow}
+              lightShadowColor={Colors().lightShadow}>
+              <Icon
+                style={{
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: 5,
+                }}
+                onPress={() => {
+                  navigation.navigate('Chats');
+                }}
+                name="message-text"
+                type={IconType.MaterialCommunityIcons}
+                size={18}
+                color={Colors().orange}
+              />
+            </NeumorphCard>
+          </View>
+          <View>
+            <NeuomorphAvatar>
+              <Avatar
+                size={60}
+                rounded
+                source={{
+                  uri: user?.image
+                    ? `${apiBaseUrl}/${user?.image}`
+                    : `${Image.resolveAssetSource(Images.DEFAULT_PROFILE).uri}`,
+                }}
+                onPress={() => navigation.navigate('ProfileScreen')}
+              />
+            </NeuomorphAvatar>
+          </View>
+        </View>
+      </View>
+      <SeparatorComponent
+        separatorColor={Colors().gray2}
+        separatorHeight={0.2}
+      />
+
+      {isLoading ? (
+        <View style={{ width: WINDOW_WIDTH, height: WINDOW_HEIGHT * 0.5 }}>
+          <Loader />
+        </View>
+      ) : data?.length > 0 ? (
+        <View style={{ padding: 10 }}>
+          <FlatList
+            data={data}
+            showsVerticalScrollIndicator={false}
+            renderItem={cardRender}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              paddingBottom: 300,
+            }}
+          />
+        </View>
+      ) : isError ? (
+        <InternalServer />
+      ) : data?.status && data?.length < 0 ? (
+        <View style={{ width: WINDOW_WIDTH, height: WINDOW_HEIGHT * 0.5 }}>
+          <DataNotFound />
+        </View>
+      ) : (
+        <Text>{data?.message} </Text>
+      )}
+    </SafeAreaView>
+  );
+};
+
+export default Home;
+
+const styles = StyleSheet.create({
+  hellowTxt: {
+    color: Colors().hellowTxt,
+    fontWeight: '500',
+    fontSize: 13,
+    marginLeft: WINDOW_WIDTH * 0.02,
+    fontFamily: Colors().fontFamilyBookMan,
+    textTransform: 'uppercase',
+  },
+  useNameTxt: {
+    fontWeight: '500',
+    fontSize: 13,
+    marginLeft: WINDOW_WIDTH * 0.02,
+    textTransform: 'uppercase',
+    color: Colors().purple,
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+  imageRightView: {
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  headerView: {
+    height: 'auto',
+    margin: WINDOW_WIDTH * 0.025,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  imageLeftView: {
+    height: 'auto',
+  },
+});
+
+// Screen Design For Previos Login 
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  Image,
+  ScrollView,
+  ToastAndroid,
+} from 'react-native';
+import React, {useState} from 'react';
+import {useDispatch} from 'react-redux';
+import SeparatorComponent from '../../component/SeparatorComponent';
+import NeumorphicButton from '../../component/NeumorphicButton';
+import IconType from '../../constants/IconType';
+import NeumorphicTextInput from '../../component/NeumorphicTextInput';
+import NeumorphicCheckbox from '../../component/NeumorphicCheckbox';
+import {login} from '../../redux/slices/authSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Colors from '../../constants/Colors';
+import {adminLogin} from '../../services/authApi';
+import {loginSchema} from '../../utils/FormSchema';
+import {useFormik} from 'formik';
+import {WINDOW_WIDTH} from '../../utils/ScreenLayout';
+import ScreensLabel from '../../constants/ScreensLabel';
+
+const LoginScreen = ({navigation}) => {
+  const screenLabel = ScreensLabel();
+  const [isChecked, setIsChecked] = useState(false);
+  const [hidePassword, setHidePassword] = useState(true);
+  const [showLoader, setShowLoader] = useState(false);
+
+  const dispatch = useDispatch();
+
+  const formik = useFormik({
+    initialValues: {
+      email: 'superadmin1@gmail.com',
+      password: '12345678',
+    },
+    validationSchema: loginSchema,
+    onSubmit: values => {
+      clickOnLoginButton();
+    },
+  });
+
+  const requestBody = {
+    email: formik?.values?.email,
+    password: formik?.values?.password,
+  };
+
+  const clickOnLoginButton = async () => {
+    setShowLoader(true);
+    const res = await adminLogin(requestBody);
+
+    if (res.status) {
+      setShowLoader(false);
+      AsyncStorage.setItem('cms-sa-token', res.token);
+      dispatch(login(res.data));
+      dispatch(setToken(res.token));
+      ToastAndroid.show(res.message, ToastAndroid.LONG);
+      navigation.navigate('Home');
+    } else {
+      ToastAndroid.show(res.message, ToastAndroid.LONG);
+      setShowLoader(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.mainContainer}>
+      <ScrollView scrollEnabled={true}>
+        <View>
+          <View
+            style={{
+              alignSelf: 'flex-end',
+            }}>
+            <Image source={require('../../assests/images/bubble.png')} />
+          </View>
+          <View style={styles.logo}>
+            <Image source={require('../../assests/images/logo.png')} />
+          </View>
+        </View>
+        <View style={styles.inputView}>
+          <NeumorphicTextInput
+            title={'Email Address'}
+            width={WINDOW_WIDTH * 0.9}
+            placeHolderTxt={'LOGIN ID'}
+            placeHolderTxtColor={'#C4D1E6'}
+            LeftIconType={IconType.AntDesign}
+            LeftIconName={'user'}
+            LeftIconColor={Colors().purple}
+            value={formik?.values?.email}
+            onChangeText={formik.handleChange('email')}
+            style={styles.inputText}
+            errorMessage={formik?.errors?.email}
+          />
+
+          <SeparatorComponent
+            separatorColor={Colors().screenBackground}
+            separatorHeight={20}
+          />
+          <NeumorphicTextInput
+            title={'Password'}
+            width={WINDOW_WIDTH * 0.9}
+            placeHolderTxt={'PASSWORD'}
+            placeHolderTxtColor={'#C4D1E6'}
+            LeftIconType={IconType.MaterialCommunityIcons}
+            LeftIconName={'lock-check-outline'}
+            LeftIconColor={Colors().purple}
+            value={formik?.values?.password}
+            onChangeText={formik.handleChange('password')}
+            RightIconType={IconType.Feather}
+            RightIconName={hidePassword ? 'eye-off' : 'eye'}
+            RightIconPress={() => setHidePassword(!hidePassword)}
+            secureTextEntry={hidePassword}
+            RightIconColor={Colors().purple}
+            style={styles.inputText}
+            errorMessage={formik?.errors?.password}
+          />
+          <SeparatorComponent
+            separatorColor={Colors().screenBackground}
+            separatorHeight={20}
+          />
+        </View>
+
+        <View style={styles.checkboxView}>
+          <NeumorphicCheckbox
+            isChecked={isChecked}
+            onChange={value => setIsChecked(value)}></NeumorphicCheckbox>
+          <Text style={styles.rememberTxt}>REMEMBER ME</Text>
+        </View>
+
+        <SeparatorComponent
+          separatorColor={Colors().screenBackground}
+          separatorHeight={20}
+        />
+
+        <View style={{alignSelf: 'center', marginTop: 50}}>
+          <NeumorphicButton
+            title={'LOGIN IN'}
+            titleColor={Colors().purple}
+            iconType={IconType.AntDesign}
+            iconName={'login'}
+            onPress={formik.handleSubmit}
+            loading={showLoader}
+          />
+          <Text style={styles.versionTxt}>{screenLabel.VERSION} 1.5</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+export default LoginScreen;
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    backgroundColor: Colors().screenBackground,
+    height: '100%',
+    width: '100%',
+    flexDirection: 'column',
+  },
+  logo: {
+    alignSelf: 'center',
+    position: 'absolute',
+    marginTop: '25%',
+  },
+  versionTxt: {
+    color: '#8D929B',
+    fontWeight: '400',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    lineHeight: 18,
+    marginTop: '20%',
+    alignSelf: 'center',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+  rememberTxt: {
+    marginLeft: '2%',
+    color: '#5D5D64',
+    fontSize: 15,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+  inputView: {
+    marginTop: '30%',
+    marginLeft: '10%',
+    marginRight: '10%',
+    alignItems: 'center',
+  },
+  checkboxView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: '5%',
+  },
+  errorMesage: {
+    color: 'red',
+    marginTop: 5,
+    alignSelf: 'flex-start',
+    marginLeft: 15,
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+  inputText: {
+    color: Colors().gray,
+    fontSize: 20,
+    fontWeight: '300',
+    textTransform: 'uppercase',
+    fontFamily: Colors().fontFamilyBookMan,
+  },
+});
+

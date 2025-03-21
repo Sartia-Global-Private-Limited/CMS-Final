@@ -1,0 +1,17 @@
+export default {
+  AntDesign: 'antdesign',
+  Entypo: 'entypo',
+  EvilIcons: 'evilicon',
+  Feather: 'feather',
+  FontAwesome: 'font-awesome',
+  FontAwesome5: 'font-awesome-5',
+  FontAwesome6: 'font-awesome-6',
+  Fontisto: 'fontisto',
+  Foundation: 'foundation',
+  MaterialCommunityIcons: 'material-community',
+  Zocial: 'zocial',
+  SimpleLineIcons: 'simple-line-icon',
+  Octicons: 'octicon',
+  MaterialIcons: 'material',
+  Ionicons: 'ionicon',
+};

@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "type": "react-native-ide",
+            "request": "launch",
+            "name": "React Native IDE panel",
+            "ios": {
+                "scheme": "ElectricalDesign"
+            },
+            "android": {}
+        }
+    ]
+}

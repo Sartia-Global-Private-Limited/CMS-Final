@@ -1,0 +1,44 @@
+in nodeModules React-native-community > art > lib > surface
+
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * @flow
+ */
+import * as React from 'react';
+import { createContext, useContext } from 'react';
+import { NativeSurfaceView } from './nativeComponents';
+
+// Create a Context for Surface
+const SurfaceContext = createContext(false);
+
+type SurfaceProps = {
+  height: number,
+  width: number,
+  children: React.Node,
+  style?: any,
+};
+
+export const useSurfaceContext = () => useContext(SurfaceContext);
+
+export default class Surface extends React.Component<SurfaceProps> {
+  static defaultProps = {
+    height: 0,
+    width: 0,
+  };
+
+  render() {
+    const { height, width, children, style } = this.props;
+
+    return (
+      <SurfaceContext.Provider value={true}>
+        <NativeSurfaceView style={[style, { height, width }]}>
+          {children}
+        </NativeSurfaceView>
+      </SurfaceContext.Provider>
+    );
+  }
+}
