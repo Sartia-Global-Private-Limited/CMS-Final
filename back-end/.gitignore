@@ -6,9 +6,9 @@ node_modules
 API/node_modules/
 API/*.env/
 /public/
-/public
-public/
-public
+# /public
+# public/
+# public
 .prettierrc
 .prettierignore
 *.zip
